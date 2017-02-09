@@ -201,6 +201,7 @@
 		55ABCB5419881CA600B03F31 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Developer ID Application: ZongQuan Wang (VWE2C42C86)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
