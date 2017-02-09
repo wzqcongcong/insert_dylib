@@ -13,19 +13,19 @@
 
 #define IS_64_BIT(x) ((x) == MH_MAGIC_64 || (x) == MH_CIGAM_64)
 #define IS_LITTLE_ENDIAN(x) ((x) == FAT_CIGAM || (x) == MH_CIGAM_64 || (x) == MH_CIGAM)
-#define SWAP32(x, magic) (IS_LITTLE_ENDIAN(magic)? OSSwapInt32(x): (x))
-#define SWAP64(x, magic) (IS_LITTLE_ENDIAN(magic)? OSSwapInt64(x): (x))
+#define SWAP32(x, magic) (IS_LITTLE_ENDIAN(magic) ? OSSwapInt32(x) : (x))
+#define SWAP64(x, magic) (IS_LITTLE_ENDIAN(magic) ? OSSwapInt64(x) : (x))
 
 #define ROUND_UP(x, y) (((x) + (y) - 1) & -(y))
 
-#define ABSDIFF(x, y) ((x) > (y)? (uintmax_t)(x) - (uintmax_t)(y): (uintmax_t)(y) - (uintmax_t)(x))
+#define ABSDIFF(x, y) ((x) > (y) ? (uintmax_t)(x) - (uintmax_t)(y) : (uintmax_t)(y) - (uintmax_t)(x))
 
 #define BUFSIZE 512
 
 void fbzero(FILE *f, off_t offset, size_t len) {
 	static unsigned char zeros[BUFSIZE] = {0};
 	fseeko(f, offset, SEEK_SET);
-	while(len != 0) {
+	while (len != 0) {
 		size_t size = MIN(len, sizeof(zeros));
 		fwrite(zeros, size, 1, f);
 		len -= size;
@@ -34,7 +34,7 @@ void fbzero(FILE *f, off_t offset, size_t len) {
 
 void fmemmove(FILE *f, off_t dst, off_t src, size_t len) {
 	static unsigned char buf[BUFSIZE];
-	while(len != 0) {
+	while (len != 0) {
 		size_t size = MIN(len, sizeof(buf));
 		fseeko(f, src, SEEK_SET);
 		fread(&buf, size, 1, f);
@@ -69,7 +69,7 @@ __attribute__((noreturn)) void usage(void) {
 	printf("Option flags:");
 
 	struct option *opt = long_options;
-	while(opt->name != NULL) {
+	while (opt->name != NULL) {
 		printf(" --%s", opt->name);
 		opt++;
 	}
@@ -90,17 +90,17 @@ __attribute__((format(printf, 1, 2))) bool ask(const char *format, ...) {
 
 	free(question);
 
-	while(true) {
+	while (true) {
 		char *line = NULL;
 		size_t size;
-		if(yes_flag) {
+		if (yes_flag) {
 			puts("y");
 			line = "y";
 		} else {
 			getline(&line, &size, stdin);
 		}
 
-		switch(line[0]) {
+		switch (line[0]) {
 			case 'y':
 			case 'Y':
 				return true;
@@ -143,21 +143,21 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 	off_t symtab_pos = -1;
 	uint32_t symtab_size = 0;
 
-	for(int i = 0; i < ncmds; i++) {
+	for (int i = 0; i < ncmds; i++) {
 		struct load_command lc;
 		fpeek(&lc, sizeof(lc), 1, f);
 
 		uint32_t cmdsize = SWAP32(lc.cmdsize, mh->magic);
 		uint32_t cmd = SWAP32(lc.cmd, mh->magic);
 
-		switch(cmd) {
+		switch (cmd) {
 			case LC_CODE_SIGNATURE:
-				if(i == ncmds - 1) {
-					if(codesig_flag == 2) {
+				if (i == ncmds - 1) {
+					if (codesig_flag == 2) {
 						return true;
 					}
 
-					if(codesig_flag == 0 && !ask("LC_CODE_SIGNATURE load command found. Remove it?")) {
+					if (codesig_flag == 0 && !ask("LC_CODE_SIGNATURE load command found. Remove it?")) {
 						return true;
 					}
 
@@ -173,26 +173,25 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 					uint64_t linkedit_fileoff = 0;
 					uint64_t linkedit_filesize = 0;
 
-					if(linkedit_32_pos != -1) {
+					if (linkedit_32_pos != -1) {
 						linkedit_fileoff = SWAP32(linkedit_32.fileoff, mh->magic);
 						linkedit_filesize = SWAP32(linkedit_32.filesize, mh->magic);
-					} else if(linkedit_64_pos != -1) {
+					} else if (linkedit_64_pos != -1) {
 						linkedit_fileoff = SWAP64(linkedit_64.fileoff, mh->magic);
 						linkedit_filesize = SWAP64(linkedit_64.filesize, mh->magic);
 					} else {
 						fprintf(stderr, "Warning: __LINKEDIT segment not found.\n");
 					}
 
-					if(linkedit_32_pos != -1 || linkedit_64_pos != -1) {
-						if(linkedit_fileoff + linkedit_filesize != *slice_size) {
+					if (linkedit_32_pos != -1 || linkedit_64_pos != -1) {
+						if (linkedit_fileoff + linkedit_filesize != *slice_size) {
 							fprintf(stderr, "Warning: __LINKEDIT segment is not at the end of the file, so codesign will not work on the patched binary.\n");
 						} else {
-							if(dataoff + datasize != *slice_size) {
+							if (dataoff + datasize != *slice_size) {
 								fprintf(stderr, "Warning: Codesignature is not at the end of __LINKEDIT segment, so codesign will not work on the patched binary.\n");
 							} else {
 								*slice_size -= datasize;
-								//int64_t diff_size = 0;
-								if(symtab_pos == -1) {
+								if (symtab_pos == -1) {
 									fprintf(stderr, "Warning: LC_SYMTAB load command not found. codesign might not work on the patched binary.\n");
 								} else {
 									fseeko(f, symtab_pos, SEEK_SET);
@@ -200,7 +199,7 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 
 									uint32_t strsize = SWAP32(symtab->strsize, mh->magic);
 									int64_t diff_size = SWAP32(symtab->stroff, mh->magic) + strsize - (int64_t)*slice_size;
-									if(-0x10 <= diff_size && diff_size <= 0) {
+									if (-0x10 <= diff_size && diff_size <= 0) {
 										symtab->strsize = SWAP32((uint32_t)(strsize - diff_size), mh->magic);
 										fwrite(symtab, symtab_size, 1, f);
 									} else {
@@ -213,7 +212,7 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 								linkedit_filesize -= datasize;
 								uint64_t linkedit_vmsize = ROUND_UP(linkedit_filesize, 0x1000);
 
-								if(linkedit_32_pos != -1) {
+								if (linkedit_32_pos != -1) {
 									linkedit_32.filesize = SWAP32((uint32_t)linkedit_filesize, mh->magic);
 									linkedit_32.vmsize = SWAP32((uint32_t)linkedit_vmsize, mh->magic);
 
@@ -255,8 +254,8 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 
 				free(dylib_command);
 
-				if(cmp == 0) {
-					if(!ask("Binary already contains a load command for that dylib. Continue anyway?")) {
+				if (cmp == 0) {
+					if (!ask("Binary already contains a load command for that dylib. Continue anyway?")) {
 						return false;
 					}
 				}
@@ -265,16 +264,16 @@ bool check_load_commands(FILE *f, struct mach_header *mh, size_t header_offset, 
 			}
 			case LC_SEGMENT:
 			case LC_SEGMENT_64:
-				if(cmd == LC_SEGMENT) {
+				if (cmd == LC_SEGMENT) {
 					struct segment_command *cmd = read_load_command(f, cmdsize);
-					if(strcmp(cmd->segname, "__LINKEDIT") == 0) {
+					if (strcmp(cmd->segname, "__LINKEDIT") == 0) {
 						linkedit_32_pos = ftello(f);
 						linkedit_32 = *cmd;
 					}
 					free(cmd);
 				} else {
 					struct segment_command_64 *cmd = read_load_command(f, cmdsize);
-					if(strcmp(cmd->segname, "__LINKEDIT") == 0) {
+					if (strcmp(cmd->segname, "__LINKEDIT") == 0) {
 						linkedit_64_pos = ftello(f);
 						linkedit_64 = *cmd;
 					}
@@ -297,7 +296,7 @@ bool insert_dylib(FILE *f, size_t header_offset, const char *dylib_path, off_t *
 	struct mach_header mh;
 	fread(&mh, sizeof(struct mach_header), 1, f);
 
-	if(mh.magic != MH_MAGIC_64 && mh.magic != MH_CIGAM_64 && mh.magic != MH_MAGIC && mh.magic != MH_CIGAM) {
+	if (mh.magic != MH_MAGIC_64 && mh.magic != MH_CIGAM_64 && mh.magic != MH_MAGIC && mh.magic != MH_CIGAM) {
 		printf("Unknown magic: 0x%x\n", mh.magic);
 		return false;
 	}
@@ -306,7 +305,7 @@ bool insert_dylib(FILE *f, size_t header_offset, const char *dylib_path, off_t *
 
 	bool cont = check_load_commands(f, &mh, header_offset, commands_offset, dylib_path, slice_size);
 
-	if(!cont) {
+	if (!cont) {
 		return true;
 	}
 
@@ -336,15 +335,15 @@ bool insert_dylib(FILE *f, size_t header_offset, const char *dylib_path, off_t *
 	fread(&space, cmdsize, 1, f);
 
 	bool empty = true;
-	for(int i = 0; i < cmdsize; i++) {
-		if(space[i] != 0) {
+	for (int i = 0; i < cmdsize; i++) {
+		if (space[i] != 0) {
 			empty = false;
 			break;
 		}
 	}
 
-	if(!empty) {
-		if(!ask("It doesn't seem like there is enough empty space. Continue anyway?")) {
+	if (!empty) {
+		if (!ask("It doesn't seem like there is enough empty space. Continue anyway?")) {
 			return false;
 		}
 	}
@@ -370,16 +369,16 @@ bool insert_dylib(FILE *f, size_t header_offset, const char *dylib_path, off_t *
 }
 
 int main(int argc, const char *argv[]) {
-	while(true) {
+	while (true) {
 		int option_index = 0;
 
 		int c = getopt_long(argc, (char *const *)argv, "", long_options, &option_index);
 
-		if(c == -1) {
+		if (c == -1) {
 			break;
 		}
 
-		switch(c) {
+		switch (c) {
 			case 0:
 				break;
 			case '?':
@@ -394,7 +393,7 @@ int main(int argc, const char *argv[]) {
 	argv = &argv[optind - 1];
 	argc -= optind - 1;
 
-	if(argc < 3 || argc > 4) {
+	if (argc < 3 || argc > 4) {
 		usage();
 	}
 
@@ -405,34 +404,34 @@ int main(int argc, const char *argv[]) {
 
 	struct stat s;
 
-	if(stat(binary_path, &s) != 0) {
+	if (stat(binary_path, &s) != 0) {
 		perror(binary_path);
 		exit(1);
 	}
 
-	if(dylib_path[0] != '@' && stat(dylib_path, &s) != 0) {
-		if(!ask("The provided dylib path doesn't exist. Continue anyway?")) {
+	if (dylib_path[0] != '@' && stat(dylib_path, &s) != 0) {
+		if (!ask("The provided dylib path doesn't exist. Continue anyway?")) {
 			exit(1);
 		}
 	}
 
 	bool binary_path_was_malloced = false;
-	if(!inplace_flag) {
+	if (!inplace_flag) {
 		char *new_binary_path;
-		if(argc == 4) {
+		if (argc == 4) {
 			new_binary_path = (char *)argv[3];
 		} else {
 			asprintf(&new_binary_path, "%s_patched", binary_path);
 			binary_path_was_malloced = true;
 		}
 
-		if(!overwrite_flag && stat(new_binary_path, &s) == 0) {
-			if(!ask("%s already exists. Overwrite it?", new_binary_path)) {
+		if (!overwrite_flag && stat(new_binary_path, &s) == 0) {
+			if (!ask("%s already exists. Overwrite it?", new_binary_path)) {
 				exit(1);
 			}
 		}
 
-		if(copyfile(binary_path, new_binary_path, NULL, COPYFILE_DATA | COPYFILE_UNLINK)) {
+		if (copyfile(binary_path, new_binary_path, NULL, COPYFILE_DATA | COPYFILE_UNLINK)) {
 			printf("Failed to create %s\n", new_binary_path);
 			exit(1);
 		}
@@ -442,7 +441,7 @@ int main(int argc, const char *argv[]) {
 
 	FILE *f = fopen(binary_path, "r+");
 
-	if(!f) {
+	if (!f) {
 		printf("Couldn't open file %s\n", binary_path);
 		exit(1);
 	}
@@ -456,7 +455,7 @@ int main(int argc, const char *argv[]) {
 	uint32_t magic;
 	fread(&magic, sizeof(uint32_t), 1, f);
 
-	switch(magic) {
+	switch (magic) {
 		case FAT_MAGIC:
 		case FAT_CIGAM: {
 			fseeko(f, 0, SEEK_SET);
@@ -474,15 +473,15 @@ int main(int argc, const char *argv[]) {
 			int fails = 0;
 
 			uint32_t offset = 0;
-			if(nfat_arch > 0) {
+			if (nfat_arch > 0) {
 				offset = SWAP32(archs[0].offset, magic);
 			}
 
-			for(int i = 0; i < nfat_arch; i++) {
+			for (int i = 0; i < nfat_arch; i++) {
 				off_t orig_offset = SWAP32(archs[i].offset, magic);
 				off_t orig_slice_size = SWAP32(archs[i].size, magic);
 				offset = ROUND_UP(offset, 1 << SWAP32(archs[i].align, magic));
-				if(orig_offset != offset) {
+				if (orig_offset != offset) {
 					fmemmove(f, offset, orig_offset, orig_slice_size);
 					fbzero(f, MIN(offset, orig_offset) + orig_slice_size, ABSDIFF(offset, orig_offset));
 
@@ -491,12 +490,12 @@ int main(int argc, const char *argv[]) {
 
 				off_t slice_size = orig_slice_size;
 				bool r = insert_dylib(f, offset, dylib_path, &slice_size);
-				if(!r) {
+				if (!r) {
 					printf("Failed to add %s to arch #%d!\n", lc_name, i + 1);
 					fails++;
 				}
 
-				if(slice_size < orig_slice_size && i < nfat_arch - 1) {
+				if (slice_size < orig_slice_size && i < nfat_arch - 1) {
 					fbzero(f, offset + slice_size, orig_slice_size - slice_size);
 				}
 
@@ -513,9 +512,9 @@ int main(int argc, const char *argv[]) {
 			fflush(f);
 			ftruncate(fileno(f), file_size);
 
-			if(fails == 0) {
+			if (fails == 0) {
 				printf("Added %s to all archs in %s\n", lc_name, binary_path);
-			} else if(fails == nfat_arch) {
+			} else if (fails == nfat_arch) {
 				printf("Failed to add %s to any archs.\n", lc_name);
 				success = false;
 			} else {
@@ -528,7 +527,7 @@ int main(int argc, const char *argv[]) {
 		case MH_CIGAM_64:
 		case MH_MAGIC:
 		case MH_CIGAM:
-			if(insert_dylib(f, 0, dylib_path, &file_size)) {
+			if (insert_dylib(f, 0, dylib_path, &file_size)) {
 				ftruncate(fileno(f), file_size);
 				printf("Added %s to %s\n", lc_name, binary_path);
 			} else {
@@ -543,14 +542,14 @@ int main(int argc, const char *argv[]) {
 
 	fclose(f);
 
-	if(!success) {
-		if(!inplace_flag) {
+	if (!success) {
+		if (!inplace_flag) {
 			unlink(binary_path);
 		}
 		exit(1);
 	}
 
-	if(binary_path_was_malloced) {
+	if (binary_path_was_malloced) {
 		free((void *)binary_path);
 	}
 
